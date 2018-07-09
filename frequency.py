@@ -54,7 +54,7 @@ def df(corpus,min_n,max_n):
 
 def obtain_file_name_from_dataset(dataset_name,preprocessing):
     headerfilename = os.path.join(*[os.path.dirname(os.path.realpath(__file__)),"tmp",dataset_name,dataset_name+"_header.csv"])
-    if preprocessing == 'original':
+    if preprocessing == 'original' or preprocessing == 'random':
         corpusfilename = os.path.join(*[os.path.dirname(os.path.realpath(__file__)),"tmp",dataset_name,dataset_name+"_corpus.csv"])
     elif preprocessing == 'postagged':
         corpusfilename = os.path.join(
@@ -93,7 +93,8 @@ def register_frequency(dataset_name,start,end,n,ngram_min,ngram_max,analysis_typ
         return row
     else:
         nfq = pandas.DataFrame(row,index=[0])
-        fq = pandas.read_csv(filename,index_col=0)
+        #fq = pandas.read_csv(filename,index_col=0)
+        fq=pandas.read_csv(filename)
         if frequency_data_in_register(fq,row):
             return False
         else:
@@ -168,6 +169,15 @@ def frequency(dataset_name,start,end,n,ngram_min,ngram_max,analysis_type,nperiod
     directory = os.path.join(*[os.path.dirname(os.path.realpath(__file__)), "tmp", dataset_name, "fq"])
     h,c = obtain_file_name_from_dataset(dataset_name,preprocessing)
     corpus = obtain_full_corpus(h,c)
+    if preprocessing == "random":
+        corpus = randomize(corpus)
     b = register_frequency(dataset_name,start,end,n,ngram_min,ngram_max,analysis_type,preprocessing)
     if b != False:
         create_frequency_file(directory,corpus,b)
+
+
+def randomize(corpus):
+    ids = corpus.index
+    dates = corpus.pubdate.sample(frac=1).tolist()
+    corpus.pubdate = pandas.Series(dict(zip(ids,dates)))
+    return corpus
