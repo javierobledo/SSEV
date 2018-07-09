@@ -3,6 +3,7 @@ from download import download
 from status import status
 from postagged import postag
 from frequency import frequency,use_index,adoption_index
+from clustering import spectral
 #"http://www.lib.umich.edu/tcp/docs/texts/ecco/"
 def download_function(args):
     dataset_name = args.dataset_name
@@ -33,6 +34,13 @@ def frequency_function(args):
         use_index(dataset_name,year_start,year_end,ngram_min,ngram_max,analysis_type,n,preprocessing)
     elif analysis_type == "a":
         adoption_index(dataset_name, year_start, year_end, ngram_min, ngram_max, analysis_type, n, preprocessing)
+
+def spectral_function(args):
+    k1 = args.k1
+    k2 = args.k2
+    dataset_name = args.dataset_name
+    preprocessing = args.preprocessing
+    spectral(dataset_name,preprocessing,k1,k2)
 
 parser = argparse.ArgumentParser()
 subparsers = parser.add_subparsers()
@@ -70,6 +78,20 @@ frequencyparser.add_argument('--number-time-periods', action='store', default=10
 frequencyparser.add_argument('--preprocessing', action='store', default='original', dest='preprocessing',
                     help='Determine if the original, tagged or random corpus is used')
 frequencyparser.set_defaults(func=frequency_function)
+
+clusteringparser = subparsers.add_parser("clustering")
+clusterparsers = clusteringparser.add_subparsers()
+spectralparser = clusterparsers.add_parser("spectral")
+spectralparser.add_argument('--dataset-name', action='store', default='ecco-tcp', dest='dataset_name',
+                    help='Dataset Name')
+spectralparser.add_argument('--preprocessing', action='store', default='original', dest='preprocessing',
+                    help='Determine if the original, tagged or random corpus is used')
+spectralparser.add_argument('--k1', action='store', default=1, dest='k1',type=int)
+spectralparser.add_argument('--k2', action='store', default=1, dest='k2',type=int)
+spectralparser.set_defaults(func=spectral_function)
+
+ldaparser = clusterparsers.add_parser("lda")
+dmrparser = clusterparsers.add_parser("dmr")
 
 #options = ["download","--dataset-name","ecco-tcp","--dataset-url","http://localhost:8000/"]
 args = parser.parse_args()
