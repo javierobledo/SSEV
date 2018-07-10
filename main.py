@@ -40,7 +40,11 @@ def spectral_function(args):
     k2 = args.k2
     dataset_name = args.dataset_name
     preprocessing = args.preprocessing
-    spectral(dataset_name,preprocessing,k1,k2)
+    mindf = args.mindf
+    full = args.full
+    ngram_min = args.ngram_min
+    ngram_max = args.ngram_max
+    spectral(dataset_name,full,preprocessing,mindf,k1,k2,ngram_min,ngram_max)
 
 parser = argparse.ArgumentParser()
 subparsers = parser.add_subparsers()
@@ -86,8 +90,14 @@ spectralparser.add_argument('--dataset-name', action='store', default='ecco-tcp'
                     help='Dataset Name')
 spectralparser.add_argument('--preprocessing', action='store', default='original', dest='preprocessing',
                     help='Determine if the original, tagged or random corpus is used')
-spectralparser.add_argument('--k1', action='store', default=1, dest='k1',type=int)
-spectralparser.add_argument('--k2', action='store', default=1, dest='k2',type=int)
+spectralparser.add_argument('--k1', action='store', default=2, dest='k1',type=int)
+spectralparser.add_argument('--k2', action='store', default=2, dest='k2',type=int)
+spectralparser.add_argument('--ngram-min', action='store', default=1, dest='ngram_min',type=int)
+spectralparser.add_argument('--ngram-max', action='store', default=1, dest='ngram_max',type=int)
+spectralparser.add_argument('--mindf', action='store', default=1, dest='mindf',type=int)
+spectralparser.add_argument('--full', dest='full', action='store_true')
+spectralparser.add_argument('--periods', dest='full', action='store_false')
+spectralparser.set_defaults(full=True)
 spectralparser.set_defaults(func=spectral_function)
 
 ldaparser = clusterparsers.add_parser("lda")
