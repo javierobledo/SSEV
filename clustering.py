@@ -52,7 +52,7 @@ def tfidf_exists(dataset_name,preprocessing):
 def create_tfidf(corpus,min_df_value,min_n,max_n):
     vectorizer = TfidfVectorizer(min_df=min_df_value, dtype=float32, ngram_range=(min_n, max_n))
     X = vectorizer.fit_transform(corpus)
-    return X
+    return X,vectorizer
 
 def spectral(dataset_name,full,preprocessing,mindf,k1,k2,ngram_min,ngram_max):
     if not spectral_directory_exists(dataset_name):
@@ -60,12 +60,16 @@ def spectral(dataset_name,full,preprocessing,mindf,k1,k2,ngram_min,ngram_max):
     if full:
         h, c = obtain_file_name_from_dataset(dataset_name, preprocessing)
         corpus = obtain_full_corpus(h, c)
+        texts = corpus.text.values
+        docnames = corpus.text.index.values
         print("full process")
         if not tfidf_exists(dataset_name,preprocessing):
             print("tfidf full not exists")
             #TODO correct format to corpus
-            X = create_tfidf(corpus.text,mindf,ngram_min,ngram_max)
-            print(X)
+            X,v = create_tfidf(texts,mindf,ngram_min,ngram_max)
+            words = v.get_feature_names()
+            tfidf = pandas.DataFrame(X.todense().astype(float32), docnames, words)
+            tfidf.to_csv("demo.csv")
         #classification
     else:
         print("not full")
@@ -102,4 +106,4 @@ def spectral(dataset_name,full,preprocessing,mindf,k1,k2,ngram_min,ngram_max):
     # plt.title("Checkerboard structure of rearranged data")
     #
     # plt.show()
-    return
+    return tfidf
