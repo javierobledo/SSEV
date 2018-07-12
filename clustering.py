@@ -5,8 +5,9 @@ from sklearn.datasets import make_checkerboard
 from sklearn.metrics import consensus_score
 from matplotlib import pyplot as plt
 import os,pandas,re
-from numpy import float32
+from numpy import float32,save,load
 from sklearn.feature_extraction.text import TfidfVectorizer
+from utils.file import *
 
 def convert_pubdate(date):
     p = re.compile("\d{4}")
@@ -54,6 +55,32 @@ def create_tfidf(corpus,min_df_value,min_n,max_n):
     X = vectorizer.fit_transform(corpus)
     return X,vectorizer
 
+def store_data(dataset_name,preprocessing,tfidf,documents,terms):
+    directory = get_directory_dataset(dataset_name)
+    filenametfidf = "{ds}_{pr}_tfidf".format(ds=dataset_name, pr=preprocessing) + ".h5"
+    filenamedocuments = "{ds}_{pr}_documents".format(ds=dataset_name, pr=preprocessing)
+    filenameterms = "{ds}_{pr}_terms".format(ds=dataset_name, pr=preprocessing)
+    fullpathtfidf = os.path.join(directory, filenametfidf)
+    fullpathdocuments = os.path.join(directory, filenamedocuments)
+    fullpathterms = os.path.join(directory, filenameterms)
+    store_sparse_mat(tfidf, "tfidf", fullpathtfidf)
+    save(fullpathdocuments,documents)
+    save(fullpathterms, terms)
+    
+def load_data(dataset_name,preprocessing):
+    directory = get_directory_dataset(dataset_name)
+    filenametfidf = "{ds}_{pr}_tfidf".format(ds=dataset_name, pr=preprocessing) + ".h5"
+    filenamedocuments = "{ds}_{pr}_documents".format(ds=dataset_name, pr=preprocessing)
+    filenameterms = "{ds}_{pr}_terms".format(ds=dataset_name, pr=preprocessing)
+    fullpathtfidf = os.path.join(directory, filenametfidf)
+    fullpathdocuments = os.path.join(directory, filenamedocuments)
+    fullpathterms = os.path.join(directory, filenameterms)
+    tfidf = load_sparse_mat("tfidf",fullpathtfidf).astype(float32)
+    documents = load(fullpathdocuments+".npy")
+    terms = load(fullpathterms + ".npy")
+    return tfidf,documents,terms
+    
+
 def spectral(dataset_name,full,preprocessing,mindf,k1,k2,ngram_min,ngram_max):
     if not spectral_directory_exists(dataset_name):
         create_spectral_directory(dataset_name)
@@ -65,12 +92,11 @@ def spectral(dataset_name,full,preprocessing,mindf,k1,k2,ngram_min,ngram_max):
         print("full process")
         if not tfidf_exists(dataset_name,preprocessing):
             print("tfidf full not exists")
-            #TODO correct format to corpus
             X,v = create_tfidf(texts,mindf,ngram_min,ngram_max)
             words = v.get_feature_names()
-            tfidf = pandas.DataFrame(X.todense().astype(float32), docnames, words)
-            tfidf.to_csv("demo.csv")
-        #classification
+            store_data(dataset_name,preprocessing,X,docnames,words)
+            store_data(dataset_name, preprocessing, X, docnames, words)
+        #TODO classification
     else:
         print("not full")
     # n_clusters = (k1,k2)
@@ -106,4 +132,7 @@ def spectral(dataset_name,full,preprocessing,mindf,k1,k2,ngram_min,ngram_max):
     # plt.title("Checkerboard structure of rearranged data")
     #
     # plt.show()
-    return tfidf
+    tfidf, documents, terms = load_data(dataset_name, preprocessing)
+    print(tfidf)
+    print(documents)
+    print(terms)
