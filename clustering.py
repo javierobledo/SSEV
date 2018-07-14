@@ -4,7 +4,7 @@ from sklearn.datasets import samples_generator as sg
 from sklearn.datasets import make_checkerboard
 from sklearn.metrics import consensus_score
 from matplotlib import pyplot as plt
-import os,pandas,re
+import os,pandas,re,time
 from numpy import float32,save,load
 from sklearn.feature_extraction.text import TfidfVectorizer
 from utils.file import *
@@ -45,10 +45,13 @@ def create_spectral_directory(dataset_name):
 
 def tfidf_exists(dataset_name,preprocessing):
     directory = get_directory_dataset(dataset_name)
-    #TODO file extention is needed
-    filename = "{ds}_{pr}".format(ds=dataset_name,pr=preprocessing)+".csv"
-    fullpath = os.path.join(directory,filename)
-    return os.path.exists(fullpath)
+    filenametfidf = "{ds}_{pr}_tfidf".format(ds=dataset_name, pr=preprocessing) + ".h5"
+    filenamedocuments = "{ds}_{pr}_documents".format(ds=dataset_name, pr=preprocessing)+".npy"
+    filenameterms = "{ds}_{pr}_terms".format(ds=dataset_name, pr=preprocessing)+".npy"
+    fullpathtfidf = os.path.join(directory, filenametfidf)
+    fullpathdocuments = os.path.join(directory, filenamedocuments)
+    fullpathterms = os.path.join(directory, filenameterms)
+    return os.path.exists(fullpathtfidf) and os.path.exists(fullpathdocuments) and os.path.exists(fullpathterms)
 
 def create_tfidf(corpus,min_df_value,min_n,max_n):
     vectorizer = TfidfVectorizer(min_df=min_df_value, dtype=float32, ngram_range=(min_n, max_n))
@@ -79,6 +82,18 @@ def load_data(dataset_name,preprocessing):
     documents = load(fullpathdocuments+".npy")
     terms = load(fullpathterms + ".npy")
     return tfidf,documents,terms
+
+def save_clasification(directory,dataset_name,preprocessing,mindf,k1,k2,ngram_min,ngram_max,model):
+    filenamedoc = "{ds}_{pr}_{df}_{k1}_{k2}_{mi}_{ma}_spectral_documents".format(
+        ds=dataset_name, pr=preprocessing,df=mindf,k1=k1,k2=k2,mi=ngram_min,ma=ngram_max)
+    fullpathdoc = os.path.join(directory, filenamedoc)
+    filenameterm = "{ds}_{pr}_{df}_{k1}_{k2}_{mi}_{ma}_spectral_terms".format(
+        ds=dataset_name, pr=preprocessing, df=mindf, k1=k1, k2=k2, mi=ngram_min, ma=ngram_max)
+    fullpathterm = os.path.join(directory, filenameterm)
+    save(fullpathdoc, model.row_labels_.astype(float32))
+    save(fullpathterm, model.column_labels_.astype(float32))
+
+#def spectral_exists(dataset_naame)
     
 
 def spectral(dataset_name,full,preprocessing,mindf,k1,k2,ngram_min,ngram_max):
@@ -95,10 +110,21 @@ def spectral(dataset_name,full,preprocessing,mindf,k1,k2,ngram_min,ngram_max):
             X,v = create_tfidf(texts,mindf,ngram_min,ngram_max)
             words = v.get_feature_names()
             store_data(dataset_name,preprocessing,X,docnames,words)
-            store_data(dataset_name, preprocessing, X, docnames, words)
-        #TODO classification
+        tfidf, documents, terms = load_data(dataset_name, preprocessing)
+        #TODO Verify if spectral classification exists
+        start = time.time()
+        model = SpectralBiclustering(n_clusters=(k1, k2), random_state=0)
+        model.fit(tfidf)
+        end = time.time()
+        print("Biclustering process takes", int(round(end - start)), "seconds")
+        save_clasification(get_directory_dataset(dataset_name),dataset_name,preprocessing,mindf,k1,k2,ngram_min,ngram_max,model)
+        print(model.get_indices(0))
     else:
         print("not full")
+        #TODO Separate corpus in time periods
+        #TODO For each period, create tfidf,terms and documents files (If not exists)
+        #TODO Make classification
+    #TODO Store clasification in files
     # n_clusters = (k1,k2)
     # data, rows, columns = make_checkerboard(
     #      shape=(300, 300), n_clusters=n_clusters, noise=10,
@@ -132,7 +158,3 @@ def spectral(dataset_name,full,preprocessing,mindf,k1,k2,ngram_min,ngram_max):
     # plt.title("Checkerboard structure of rearranged data")
     #
     # plt.show()
-    tfidf, documents, terms = load_data(dataset_name, preprocessing)
-    print(tfidf)
-    print(documents)
-    print(terms)
