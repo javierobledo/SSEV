@@ -44,7 +44,10 @@ def spectral_function(args):
     full = args.full
     ngram_min = args.ngram_min
     ngram_max = args.ngram_max
-    spectral(dataset_name,full,preprocessing,mindf,k1,k2,ngram_min,ngram_max)
+    start = args.start
+    end = args.end
+    n = args.n
+    spectral(dataset_name,full,preprocessing,mindf,k1,k2,ngram_min,ngram_max,start,end,n)
 
 parser = argparse.ArgumentParser()
 subparsers = parser.add_subparsers()
@@ -97,6 +100,10 @@ spectralparser.add_argument('--ngram-max', action='store', default=1, dest='ngra
 spectralparser.add_argument('--mindf', action='store', default=1, dest='mindf',type=int)
 spectralparser.add_argument('--full', dest='full', action='store_true')
 spectralparser.add_argument('--periods', dest='full', action='store_false')
+spectralparser.add_argument('--year-start', action='store', default=1700, dest='start',type=int)
+spectralparser.add_argument('--year-end', action='store', default=1800, dest='end',type=int)
+spectralparser.add_argument('--number-time-periods', action='store', default=10, dest='n', type=int,
+                    help='Number of portions of time to consider. If 10, this means 10 time periods: 1701 to 1710, 1711 to 1720 and so on')
 spectralparser.set_defaults(full=True)
 spectralparser.set_defaults(func=spectral_function)
 

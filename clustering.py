@@ -9,6 +9,16 @@ from numpy import float32,save,load
 from sklearn.feature_extraction.text import TfidfVectorizer
 from utils.file import *
 
+def obtain_time_slices(start,end,portions):
+    jump = int((end - start)/portions)
+    first = list(range(start+1,end,jump))
+    last = list(range(start+jump,end+jump,jump))
+    return list(zip(first,last))
+
+def split_data_in_time_slices(dataframe,start,end,portions):
+    slices = obtain_time_slices(start,end,portions)
+    return {(s,e) : dataframe.query(str(s)+' <= pubdate <=' + str(e)) for (s,e) in slices}
+
 def convert_pubdate(date):
     p = re.compile("\d{4}")
     date_as_string = str(date)
@@ -53,6 +63,15 @@ def tfidf_exists(dataset_name,preprocessing):
     fullpathterms = os.path.join(directory, filenameterms)
     return os.path.exists(fullpathtfidf) and os.path.exists(fullpathdocuments) and os.path.exists(fullpathterms)
 
+def get_directory_dataset_periods(dataset_name,preprocessing,start,end,n):
+    directory = get_directory_dataset(dataset_name)
+    newdirectory = "{p}_{s}-{e}_{n}".format(p=preprocessing,s=start,e=end,n=n)
+    return os.path.join(directory,newdirectory)
+
+def tfidf_periods_exists(dataset_name,preprocessing,start,end,n):
+    directory = get_directory_dataset_periods(dataset_name,preprocessing,start,end,n)
+    return os.path.exists(directory)
+
 def create_tfidf(corpus,min_df_value,min_n,max_n):
     vectorizer = TfidfVectorizer(min_df=min_df_value, dtype=float32, ngram_range=(min_n, max_n))
     X = vectorizer.fit_transform(corpus)
@@ -63,6 +82,18 @@ def store_data(dataset_name,preprocessing,tfidf,documents,terms):
     filenametfidf = "{ds}_{pr}_tfidf".format(ds=dataset_name, pr=preprocessing) + ".h5"
     filenamedocuments = "{ds}_{pr}_documents".format(ds=dataset_name, pr=preprocessing)
     filenameterms = "{ds}_{pr}_terms".format(ds=dataset_name, pr=preprocessing)
+    fullpathtfidf = os.path.join(directory, filenametfidf)
+    fullpathdocuments = os.path.join(directory, filenamedocuments)
+    fullpathterms = os.path.join(directory, filenameterms)
+    store_sparse_mat(tfidf, "tfidf", fullpathtfidf)
+    save(fullpathdocuments,documents)
+    save(fullpathterms, terms)
+
+def store_data_periods(dataset_name,preprocessing,start,end,n,i,j,tfidf,documents,terms):
+    directory = get_directory_dataset_periods(dataset_name,preprocessing,start,end,n)
+    filenametfidf = "{i}-{j}_tfidf".format(i=i,j=j) + ".h5"
+    filenamedocuments = "{i}-{j}_documents".format(i=i,j=j)
+    filenameterms = "{i}-{j}_terms".format(i=i,j=j)
     fullpathtfidf = os.path.join(directory, filenametfidf)
     fullpathdocuments = os.path.join(directory, filenamedocuments)
     fullpathterms = os.path.join(directory, filenameterms)
@@ -83,6 +114,19 @@ def load_data(dataset_name,preprocessing):
     terms = load(fullpathterms + ".npy")
     return tfidf,documents,terms
 
+def load_data_periods(dataset_name,preprocessing,start,end,n,i,j):
+    directory = get_directory_dataset_periods(dataset_name,preprocessing,start,end,n)
+    filenametfidf = "{i}-{j}_tfidf".format(i=i,j=j) + ".h5"
+    filenamedocuments = "{i}-{j}_documents".format(i=i,j=j)
+    filenameterms = "{i}-{j}_terms".format(i=i,j=j)
+    fullpathtfidf = os.path.join(directory, filenametfidf)
+    fullpathdocuments = os.path.join(directory, filenamedocuments)
+    fullpathterms = os.path.join(directory, filenameterms)
+    tfidf = load_sparse_mat("tfidf",fullpathtfidf).astype(float32)
+    documents = load(fullpathdocuments+".npy")
+    terms = load(fullpathterms + ".npy")
+    return tfidf,documents,terms
+
 def save_clasification(directory,dataset_name,preprocessing,mindf,k1,k2,ngram_min,ngram_max,model):
     filenamedoc = "{ds}_{pr}_{df}_{k1}_{k2}_{mi}_{ma}_spectral_documents".format(
         ds=dataset_name, pr=preprocessing,df=mindf,k1=k1,k2=k2,mi=ngram_min,ma=ngram_max)
@@ -93,68 +137,73 @@ def save_clasification(directory,dataset_name,preprocessing,mindf,k1,k2,ngram_mi
     save(fullpathdoc, model.row_labels_.astype(float32))
     save(fullpathterm, model.column_labels_.astype(float32))
 
-#def spectral_exists(dataset_naame)
+def save_clasification_periods(dataset_name,preprocessing,mindf,k1,k2,ngram_min,ngram_max,model,start,end,n,i,j):
+    directory = get_directory_dataset_periods(dataset_name,preprocessing,start,end,n)
+    filenamedoc = "{i}-{j}_{df}_{k1}_{k2}_{mi}_{ma}_spectral_documents".format(i=i,j=j,
+        df=mindf,k1=k1,k2=k2,mi=ngram_min,ma=ngram_max)
+    fullpathdoc = os.path.join(directory, filenamedoc)
+    filenameterm = "{i}-{j}_{df}_{k1}_{k2}_{mi}_{ma}_spectral_terms".format(i=i,j=j,
+        df=mindf, k1=k1, k2=k2, mi=ngram_min, ma=ngram_max)
+    fullpathterm = os.path.join(directory, filenameterm)
+    save(fullpathdoc, model.row_labels_.astype(float32))
+    save(fullpathterm, model.column_labels_.astype(float32))
+
+def spectral_exists(directory,dataset_name,preprocessing,mindf,k1,k2,ngram_min,ngram_max):
+    filenamedoc = "{ds}_{pr}_{df}_{k1}_{k2}_{mi}_{ma}_spectral_documents".format(
+        ds=dataset_name, pr=preprocessing, df=mindf, k1=k1, k2=k2, mi=ngram_min, ma=ngram_max)
+    fullpathdoc = os.path.join(directory, filenamedoc)+".npy"
+    filenameterm = "{ds}_{pr}_{df}_{k1}_{k2}_{mi}_{ma}_spectral_terms".format(
+        ds=dataset_name, pr=preprocessing, df=mindf, k1=k1, k2=k2, mi=ngram_min, ma=ngram_max)+".npy"
+    fullpathterm = os.path.join(directory, filenameterm)
+    return os.path.exists(fullpathdoc) and os.path.exists(fullpathterm)
+
+def spectral_periods_exists(dataset_name,preprocessing,mindf,k1,k2,ngram_min,ngram_max,start,end,n,i,j):
+    directory = get_directory_dataset_periods(dataset_name, preprocessing, start, end, n)
+    filenamedoc = "{i}-{j}_{df}_{k1}_{k2}_{mi}_{ma}_spectral_documents".format(i=i,j=j,
+        ds=dataset_name, pr=preprocessing, df=mindf, k1=k1, k2=k2, mi=ngram_min, ma=ngram_max)
+    fullpathdoc = os.path.join(directory, filenamedoc)+".npy"
+    filenameterm = "{i}-{j}_{df}_{k1}_{k2}_{mi}_{ma}_spectral_terms".format(i=i,j=j,
+        ds=dataset_name, pr=preprocessing, df=mindf, k1=k1, k2=k2, mi=ngram_min, ma=ngram_max)+".npy"
+    fullpathterm = os.path.join(directory, filenameterm)
+    return os.path.exists(fullpathdoc) and os.path.exists(fullpathterm)
     
 
-def spectral(dataset_name,full,preprocessing,mindf,k1,k2,ngram_min,ngram_max):
+def spectral(dataset_name,full,preprocessing,mindf,k1,k2,ngram_min,ngram_max,start,end,n):
     if not spectral_directory_exists(dataset_name):
         create_spectral_directory(dataset_name)
+    h, c = obtain_file_name_from_dataset(dataset_name, preprocessing)
+    corpus = obtain_full_corpus(h, c)
     if full:
-        h, c = obtain_file_name_from_dataset(dataset_name, preprocessing)
-        corpus = obtain_full_corpus(h, c)
         texts = corpus.text.values
         docnames = corpus.text.index.values
-        print("full process")
         if not tfidf_exists(dataset_name,preprocessing):
-            print("tfidf full not exists")
             X,v = create_tfidf(texts,mindf,ngram_min,ngram_max)
             words = v.get_feature_names()
             store_data(dataset_name,preprocessing,X,docnames,words)
         tfidf, documents, terms = load_data(dataset_name, preprocessing)
-        #TODO Verify if spectral classification exists
-        start = time.time()
-        model = SpectralBiclustering(n_clusters=(k1, k2), random_state=0)
-        model.fit(tfidf)
-        end = time.time()
-        print("Biclustering process takes", int(round(end - start)), "seconds")
-        save_clasification(get_directory_dataset(dataset_name),dataset_name,preprocessing,mindf,k1,k2,ngram_min,ngram_max,model)
-        print(model.get_indices(0))
+        if not spectral_exists(get_directory_dataset(dataset_name),dataset_name,preprocessing,mindf,k1,k2,ngram_min,ngram_max):
+            start = time.time()
+            model = SpectralBiclustering(n_clusters=(k1, k2), random_state=0)
+            model.fit(tfidf)
+            end = time.time()
+            print("Biclustering process takes", int(round(end - start)), "seconds")
+            save_clasification(get_directory_dataset(dataset_name),dataset_name,preprocessing,mindf,k1,k2,ngram_min,ngram_max,model)
     else:
-        print("not full")
-        #TODO Separate corpus in time periods
-        #TODO For each period, create tfidf,terms and documents files (If not exists)
-        #TODO Make classification
-    #TODO Store clasification in files
-    # n_clusters = (k1,k2)
-    # data, rows, columns = make_checkerboard(
-    #      shape=(300, 300), n_clusters=n_clusters, noise=10,
-    #      shuffle=False, random_state=0)
-    # print(data)
-    # print(rows)
-    # print(columns)
-    # plt.matshow(data, cmap=plt.cm.Blues)
-    # plt.title("Original dataset")
-    #
-    # data, row_idx, col_idx = sg._shuffle(data, random_state=0)
-    # plt.matshow(data, cmap=plt.cm.Blues)
-    # plt.title("Shuffled dataset")
-    # model = SpectralBiclustering(n_clusters=n_clusters, method='log',
-    #                              random_state=0)
-    # model.fit(data)
-    # score = consensus_score(model.biclusters_,
-    #                         (rows[:, row_idx], columns[:, col_idx]))
-    #
-    # print("consensus score: {:.1f}".format(score))
-    #
-    # fit_data = data[np.argsort(model.row_labels_)]
-    # fit_data = fit_data[:, np.argsort(model.column_labels_)]
-    #
-    # plt.matshow(fit_data, cmap=plt.cm.Blues)
-    # plt.title("After biclustering; rearranged to show biclusters")
-    #
-    # plt.matshow(np.outer(np.sort(model.row_labels_) + 1,
-    #                      np.sort(model.column_labels_) + 1),
-    #             cmap=plt.cm.Blues)
-    # plt.title("Checkerboard structure of rearranged data")
-    #
-    # plt.show()
+        time_corpus = split_data_in_time_slices(corpus, start, end, n)
+        if not tfidf_periods_exists(dataset_name,preprocessing,start,end,n):
+            os.makedirs(get_directory_dataset_periods(dataset_name,preprocessing,start,end,n))
+            for (s, e), corp in time_corpus.items():
+                texts = corp.text.values
+                docnames = corp.text.index.values
+                X, v = create_tfidf(texts, mindf, ngram_min, ngram_max)
+                words = v.get_feature_names()
+                store_data_periods(dataset_name,preprocessing,start,end,n,s,e,X,docnames,words)
+        for s,e in time_corpus:
+            tfidf, documents, terms = load_data_periods(dataset_name, preprocessing,start,end,n,s,e)
+            if not spectral_periods_exists(dataset_name,preprocessing,mindf,k1,k2,ngram_min,ngram_max,start,end,n,s,e):
+                st = time.time()
+                model = SpectralBiclustering(n_clusters=(k1, k2), random_state=0)
+                model.fit(tfidf)
+                ed = time.time()
+                print("Biclustering process takes", int(round(ed - st)), "seconds")
+                save_clasification_periods(dataset_name,preprocessing,mindf,k1,k2,ngram_min,ngram_max,model,start,end,n,s,e)
