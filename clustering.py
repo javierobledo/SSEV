@@ -166,7 +166,30 @@ def spectral_periods_exists(dataset_name,preprocessing,mindf,k1,k2,ngram_min,ngr
         ds=dataset_name, pr=preprocessing, df=mindf, k1=k1, k2=k2, mi=ngram_min, ma=ngram_max)+".npy"
     fullpathterm = os.path.join(directory, filenameterm)
     return os.path.exists(fullpathdoc) and os.path.exists(fullpathterm)
-    
+
+def load_classification(dataset_name,preprocessing,mindf,k1,k2,ngram_min,ngram_max):
+    directory = get_directory_dataset(dataset_name)
+    filenamedoc = "{ds}_{pr}_{df}_{k1}_{k2}_{mi}_{ma}_spectral_documents".format(
+        ds=dataset_name, pr=preprocessing, df=mindf, k1=k1, k2=k2, mi=ngram_min, ma=ngram_max)+".npy"
+    fullpathdoc = os.path.join(directory, filenamedoc)
+    filenameterm = "{ds}_{pr}_{df}_{k1}_{k2}_{mi}_{ma}_spectral_terms".format(
+        ds=dataset_name, pr=preprocessing, df=mindf, k1=k1, k2=k2, mi=ngram_min, ma=ngram_max)+".npy"
+    fullpathterm = os.path.join(directory, filenameterm)
+    return load(fullpathdoc),load(fullpathterm)
+
+def load_classification_periods(dataset_name,preprocessing,mindf,k1,k2,ngram_min,ngram_max,start,end,n,i,j):
+    directory = get_directory_dataset_periods(dataset_name, preprocessing, start, end, n)
+    filenamedoc = "{i}-{j}_{df}_{k1}_{k2}_{mi}_{ma}_spectral_documents".format(i=i, j=j,
+                                                                               ds=dataset_name, pr=preprocessing,
+                                                                               df=mindf, k1=k1, k2=k2, mi=ngram_min,
+                                                                               ma=ngram_max)
+    fullpathdoc = os.path.join(directory, filenamedoc) + ".npy"
+    filenameterm = "{i}-{j}_{df}_{k1}_{k2}_{mi}_{ma}_spectral_terms".format(i=i, j=j,
+                                                                            ds=dataset_name, pr=preprocessing, df=mindf,
+                                                                            k1=k1, k2=k2, mi=ngram_min,
+                                                                            ma=ngram_max) + ".npy"
+    fullpathterm = os.path.join(directory, filenameterm)
+    return load(fullpathdoc), load(fullpathterm)
 
 def spectral(dataset_name,full,preprocessing,mindf,k1,k2,ngram_min,ngram_max,start,end,n):
     if not spectral_directory_exists(dataset_name):

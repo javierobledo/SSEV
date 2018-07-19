@@ -4,6 +4,7 @@ from status import status
 from postagged import postag
 from frequency import frequency,use_index,adoption_index
 from clustering import spectral
+from metrics import apply_index
 #"http://www.lib.umich.edu/tcp/docs/texts/ecco/"
 def download_function(args):
     dataset_name = args.dataset_name
@@ -49,6 +50,20 @@ def spectral_function(args):
     n = args.n
     spectral(dataset_name,full,preprocessing,mindf,k1,k2,ngram_min,ngram_max,start,end,n)
 
+def index_function(args):
+    k1 = args.k1
+    k2 = args.k2
+    dataset_name = args.dataset_name
+    preprocessing = args.preprocessing
+    mindf = args.mindf
+    full = args.full
+    ngram_min = args.ngram_min
+    ngram_max = args.ngram_max
+    start = args.start
+    end = args.end
+    n = args.n
+    classification = args.classification
+    apply_index(dataset_name, preprocessing, classification, full, start, end, n, mindf, k1, k2, ngram_min, ngram_max)
 parser = argparse.ArgumentParser()
 subparsers = parser.add_subparsers()
 
@@ -106,6 +121,28 @@ spectralparser.add_argument('--number-time-periods', action='store', default=10,
                     help='Number of portions of time to consider. If 10, this means 10 time periods: 1701 to 1710, 1711 to 1720 and so on')
 spectralparser.set_defaults(full=True)
 spectralparser.set_defaults(func=spectral_function)
+
+
+indexparser = clusterparsers.add_parser("index")
+indexparser.add_argument('--dataset-name', action='store', default='ecco-tcp', dest='dataset_name',
+                    help='Dataset Name')
+indexparser.add_argument('--preprocessing', action='store', default='original', dest='preprocessing',
+                    help='Determine if the original, tagged or random corpus is used')
+indexparser.add_argument('--classification', action='store', default='spectral', dest='classification',
+                    help='Algorithm of classification used')
+indexparser.add_argument('--k1', action='store', default=2, dest='k1',type=int)
+indexparser.add_argument('--k2', action='store', default=2, dest='k2',type=int)
+indexparser.add_argument('--ngram-min', action='store', default=1, dest='ngram_min',type=int)
+indexparser.add_argument('--ngram-max', action='store', default=1, dest='ngram_max',type=int)
+indexparser.add_argument('--mindf', action='store', default=1, dest='mindf',type=int)
+indexparser.add_argument('--full', dest='full', action='store_true')
+indexparser.add_argument('--periods', dest='full', action='store_false')
+indexparser.add_argument('--year-start', action='store', default=1700, dest='start',type=int)
+indexparser.add_argument('--year-end', action='store', default=1800, dest='end',type=int)
+indexparser.add_argument('--number-time-periods', action='store', default=10, dest='n', type=int,
+                    help='Number of portions of time to consider. If 10, this means 10 time periods: 1701 to 1710, 1711 to 1720 and so on')
+indexparser.set_defaults(full=True)
+indexparser.set_defaults(func=index_function)
 
 ldaparser = clusterparsers.add_parser("lda")
 dmrparser = clusterparsers.add_parser("dmr")
