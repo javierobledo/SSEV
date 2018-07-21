@@ -6,8 +6,9 @@ from sklearn.metrics import consensus_score
 from matplotlib import pyplot as plt
 import os,pandas,re,time
 from numpy import float32,save,load
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer,CountVectorizer
 from utils.file import *
+from sklearn.decomposition import LatentDirichletAllocation
 
 def obtain_time_slices(start,end,portions):
     jump = int((end - start)/portions)
@@ -230,3 +231,118 @@ def spectral(dataset_name,full,preprocessing,mindf,k1,k2,ngram_min,ngram_max,sta
                 ed = time.time()
                 print("Biclustering process takes", int(round(ed - st)), "seconds")
                 save_clasification_periods(dataset_name,preprocessing,mindf,k1,k2,ngram_min,ngram_max,model,start,end,n,s,e)
+
+
+def get_directory_lda_dataset(dataset_name):
+    return os.path.join(*[os.path.dirname(os.path.realpath(__file__)), "tmp", dataset_name, "lda"])
+
+def lda_directory_exists(dataset_name):
+    return os.path.exists(get_directory_lda_dataset(dataset_name))
+
+def create_lda_directory(dataset_name):
+    os.makedirs(get_directory_lda_dataset(dataset_name))
+
+#TODO in lda the clasification is documents and terms?
+def lda_exists(dataset_name,preprocessing,mindf,k,ngram_min,ngram_max):
+    directory = get_directory_lda_dataset(dataset_name)
+    filenamedoc = "{ds}_{pr}_{df}_{k}_{mi}_{ma}_lda_documents".format(
+        ds=dataset_name, pr=preprocessing, df=mindf, k=k, mi=ngram_min, ma=ngram_max)
+    fullpathdoc = os.path.join(directory, filenamedoc)+".npy"
+    filenameterm = "{ds}_{pr}_{df}_{k}_{mi}_{ma}_lda_terms".format(
+        ds=dataset_name, pr=preprocessing, df=mindf, k=k, mi=ngram_min, ma=ngram_max)+".npy"
+    fullpathterm = os.path.join(directory, filenameterm)
+    return os.path.exists(fullpathdoc) and os.path.exists(fullpathterm)
+
+def corpus_vektorizer_exists(dataset_name,preprocessing):
+    directory = get_directory_lda_dataset(dataset_name)
+    filenametfidf = "{ds}_{pr}_count_vektorizer".format(ds=dataset_name, pr=preprocessing) + ".h5"
+    filenamedocuments = "{ds}_{pr}_documents_vektorizer".format(ds=dataset_name, pr=preprocessing) + ".npy"
+    filenameterms = "{ds}_{pr}_terms_vektorizer".format(ds=dataset_name, pr=preprocessing) + ".npy"
+    fullpathtfidf = os.path.join(directory, filenametfidf)
+    fullpathdocuments = os.path.join(directory, filenamedocuments)
+    fullpathterms = os.path.join(directory, filenameterms)
+    return os.path.exists(fullpathtfidf) and os.path.exists(fullpathdocuments) and os.path.exists(fullpathterms)
+
+def create_corpus_vektorizer(corpus,min_df_value,min_n,max_n):
+    vectorizer = CountVectorizer(min_df=min_df_value, dtype=float32, ngram_range=(min_n, max_n))
+    X = vectorizer.fit_transform(corpus)
+    return X,vectorizer
+
+def display_topics(model, feature_names, no_top_words):
+    for topic_idx, topic in enumerate(model.components_):
+        print("Topic %d:" % (topic_idx))
+        print(" ".join([feature_names[i]
+                        for i in topic.argsort()[:-no_top_words - 1:-1]]))
+
+
+def store_vekt_data(dataset_name,preprocessing,tfidf,documents,terms):
+    directory = get_directory_lda_dataset(dataset_name)
+    filenametfidf = "{ds}_{pr}_count_vektorizer".format(ds=dataset_name, pr=preprocessing) + ".h5"
+    filenamedocuments = "{ds}_{pr}_documents_vektorizer".format(ds=dataset_name, pr=preprocessing)
+    filenameterms = "{ds}_{pr}_terms_vektorizer".format(ds=dataset_name, pr=preprocessing)
+    fullpathtfidf = os.path.join(directory, filenametfidf)
+    fullpathdocuments = os.path.join(directory, filenamedocuments)
+    fullpathterms = os.path.join(directory, filenameterms)
+    store_sparse_mat(tfidf, "count", fullpathtfidf)
+    save(fullpathdocuments,documents)
+    save(fullpathterms, terms)
+
+def load_vekt_data(dataset_name,preprocessing):
+    directory = get_directory_lda_dataset(dataset_name)
+    filenametfidf = "{ds}_{pr}_count_vektorizer".format(ds=dataset_name, pr=preprocessing) + ".h5"
+    filenamedocuments = "{ds}_{pr}_documents_vektorizer".format(ds=dataset_name, pr=preprocessing)
+    filenameterms = "{ds}_{pr}_terms_vektorizer".format(ds=dataset_name, pr=preprocessing)
+    fullpathtfidf = os.path.join(directory, filenametfidf)
+    fullpathdocuments = os.path.join(directory, filenamedocuments)
+    fullpathterms = os.path.join(directory, filenameterms)
+    tfidf = load_sparse_mat("count", fullpathtfidf).astype(float32)
+    documents = load(fullpathdocuments + ".npy")
+    terms = load(fullpathterms + ".npy")
+    return tfidf, documents, terms
+
+def from_lda_to_clusters():
+    return
+
+def lda(dataset_name,full,preprocessing,mindf,k,ngram_min,ngram_max,start,end,n):
+    if not lda_directory_exists(dataset_name):
+        create_lda_directory(dataset_name)
+    h, c = obtain_file_name_from_dataset(dataset_name, preprocessing)
+    corpus = obtain_full_corpus(h, c)
+    if full:
+        texts = corpus.text.values
+        docnames = corpus.text.index.values
+        if not corpus_vektorizer_exists(dataset_name,preprocessing):
+            X,v = create_corpus_vektorizer(texts,mindf,ngram_min,ngram_max)
+            words = v.get_feature_names()
+            store_vekt_data(dataset_name, preprocessing, X, docnames, words)
+        countvekt, documents, terms = load_vekt_data(dataset_name, preprocessing)
+        lda = LatentDirichletAllocation(n_topics=k, max_iter=5, learning_method='online',
+                                        learning_offset=50., random_state=0).fit(countvekt)
+        return lda
+
+    #    if not lda_exists(dataset_name,preprocessing,mindf,k,ngram_min,ngram_max):
+    #         start = time.time()
+    #         lda_model = gensim.models.LdaMulticore(bow_corpus, num_topics=10, id2word=dictionary)
+    #         lda_model.fit(tfidf)
+    #         end = time.time()
+    #         print("LDA process takes", int(round(end - start)), "seconds")
+    #         save_clasification(get_directory_lda_dataset(dataset_name),dataset_name,preprocessing,mindf,k1,k2,ngram_min,ngram_max,model)
+    # else:
+    #     time_corpus = split_data_in_time_slices(corpus, start, end, n)
+    #     if not tfidf_periods_exists(dataset_name,preprocessing,start,end,n):
+    #         os.makedirs(get_directory_dataset_periods(dataset_name,preprocessing,start,end,n))
+    #         for (s, e), corp in time_corpus.items():
+    #             texts = corp.text.values
+    #             docnames = corp.text.index.values
+    #             X, v = create_tfidf(texts, mindf, ngram_min, ngram_max)
+    #             words = v.get_feature_names()
+    #             store_data_periods(dataset_name,preprocessing,start,end,n,s,e,X,docnames,words)
+    #     for s,e in time_corpus:
+    #         tfidf, documents, terms = load_data_periods(dataset_name, preprocessing,start,end,n,s,e)
+    #         if not spectral_periods_exists(dataset_name,preprocessing,mindf,k1,k2,ngram_min,ngram_max,start,end,n,s,e):
+    #             st = time.time()
+    #             model = SpectralBiclustering(n_clusters=(k1, k2), random_state=0)
+    #             model.fit(tfidf)
+    #             ed = time.time()
+    #             print("Biclustering process takes", int(round(ed - st)), "seconds")
+    #             save_clasification_periods(dataset_name,preprocessing,mindf,k1,k2,ngram_min,ngram_max,model,start,end,n,s,e)

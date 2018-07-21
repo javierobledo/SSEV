@@ -3,7 +3,7 @@ from download import download
 from status import status
 from postagged import postag
 from frequency import frequency,use_index,adoption_index
-from clustering import spectral
+from clustering import spectral,lda
 from metrics import apply_index
 #"http://www.lib.umich.edu/tcp/docs/texts/ecco/"
 def download_function(args):
@@ -64,6 +64,20 @@ def index_function(args):
     n = args.n
     classification = args.classification
     apply_index(dataset_name, preprocessing, classification, full, start, end, n, mindf, k1, k2, ngram_min, ngram_max)
+
+def lda_function(args):
+    k = args.k
+    dataset_name = args.dataset_name
+    preprocessing = args.preprocessing
+    mindf = args.mindf
+    full = args.full
+    ngram_min = args.ngram_min
+    ngram_max = args.ngram_max
+    start = args.start
+    end = args.end
+    n = args.n
+    lda(dataset_name, full, preprocessing, mindf, k, ngram_min, ngram_max, start, end, n)
+
 parser = argparse.ArgumentParser()
 subparsers = parser.add_subparsers()
 
@@ -145,6 +159,23 @@ indexparser.set_defaults(full=True)
 indexparser.set_defaults(func=index_function)
 
 ldaparser = clusterparsers.add_parser("lda")
+ldaparser.add_argument('--dataset-name', action='store', default='ecco-tcp', dest='dataset_name',
+                    help='Dataset Name')
+ldaparser.add_argument('--preprocessing', action='store', default='original', dest='preprocessing',
+                    help='Determine if the original, tagged or random corpus is used')
+ldaparser.add_argument('--k', action='store', default=2, dest='k',type=int)
+ldaparser.add_argument('--ngram-min', action='store', default=1, dest='ngram_min',type=int)
+ldaparser.add_argument('--ngram-max', action='store', default=1, dest='ngram_max',type=int)
+ldaparser.add_argument('--mindf', action='store', default=1, dest='mindf',type=int)
+ldaparser.add_argument('--full', dest='full', action='store_true')
+ldaparser.add_argument('--periods', dest='full', action='store_false')
+ldaparser.add_argument('--year-start', action='store', default=1700, dest='start',type=int)
+ldaparser.add_argument('--year-end', action='store', default=1800, dest='end',type=int)
+ldaparser.add_argument('--number-time-periods', action='store', default=10, dest='n', type=int,
+                    help='Number of portions of time to consider. If 10, this means 10 time periods: 1701 to 1710, 1711 to 1720 and so on')
+ldaparser.set_defaults(full=True)
+ldaparser.set_defaults(func=lda_function)
+
 dmrparser = clusterparsers.add_parser("dmr")
 
 #options = ["download","--dataset-name","ecco-tcp","--dataset-url","http://localhost:8000/"]
